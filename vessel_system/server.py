@@ -173,8 +173,8 @@ app.add_middleware(
 @app.middleware("http")
 async def auth_middleware(request: Request, call_next):
     """Enforce authentication on all MCP and state mutation endpoints."""
-    # Allow health check and OpenAPI schema discovery without auth
-    if request.url.path in ["/", "/health", "/status", "/openapi.json", "/docs", "/redoc"]:
+    # Allow health check, OpenAPI discovery, and daily cron dispatch
+    if request.url.path in ["/", "/health", "/status", "/openapi.json", "/docs", "/redoc", "/api/notify/daily"]:
         return await call_next(request)
 
     # Check bearer auth token if auth is enabled
