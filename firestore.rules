@@ -1,0 +1,11 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Vessel System uses Firebase Admin SDK on the backend server.
+    // Admin SDK automatically bypasses these rules with service account credentials.
+    // All direct client-side reads and writes are denied to enforce backend-only authority.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
