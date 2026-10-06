@@ -326,6 +326,39 @@ def api_get_history(player_id: str = "player_1", limit: int = 50):
     return service.get_history(player_id=player_id, limit=limit)
 
 
+@app.get("/api/notify/daily", summary="Dispatch Daily Telegram Quest Alert")
+def api_dispatch_daily_notification(player_id: str = "player_1"):
+    from telegram_notifier import send_telegram_alert
+    player = service.get_player_state(player_id)["player"]
+    weakest = service.get_weakest_link(player_id)["analysis"]
+    quests = service.get_active_quests(player_id)["active_quests"]
+    if not quests:
+        new_q = service.generate_quest(player_id, target_weakness=weakest["weakest_stat"])["quest"]
+        quests = [new_q]
+
+    top_quest = quests[0]
+    msg = (
+        f"👑 *[SHADOW SYSTEM — MORNING DIRECTIVE]*\n"
+        f"━━━━━━━━━━━━━━━━━━━━\n\n"
+        f"Player: *{player['name']}*\n"
+        f"Rank: *{player['rank']}* | Level: *{player['level']}*\n"
+        f"Current Streak: *{player['current_streak']} Days* (Longest: {player['longest_streak']} Days)\n\n"
+        f"🎯 *TARGETED WEAKNESS:*\n"
+        f"• Bottleneck: *{weakest['weakest_stat']}*\n"
+        f"• Diagnosis: _{weakest['reason']}_\n\n"
+        f"⚔️ *TODAY’S MANDATED QUEST:*\n"
+        f"• Title: *{top_quest['title']}*\n"
+        f"• Target: {top_quest['target']}\n"
+        f"• Reward: +{top_quest['xp_reward']} XP\n\n"
+        f"🏋️ *PHYSICAL CONDITIONING:*\n"
+        f"• Complete 45 min workout routine according to schedule.\n\n"
+        f"_The System is watching your execution. Train the weakest link._"
+    )
+    sent = send_telegram_alert(msg)
+    return {"success": sent, "message": "Daily Telegram directive dispatched successfully."}
+
+
+
 
 # Mount MCP Streamable HTTP & SSE Starlette Apps
 try:
