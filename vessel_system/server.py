@@ -173,8 +173,8 @@ app.add_middleware(
 @app.middleware("http")
 async def auth_middleware(request: Request, call_next):
     """Enforce authentication on all MCP and state mutation endpoints."""
-    # Allow health check without auth
-    if request.url.path in ["/", "/health", "/status"]:
+    # Allow health check and OpenAPI schema discovery without auth
+    if request.url.path in ["/", "/health", "/status", "/openapi.json", "/docs", "/redoc"]:
         return await call_next(request)
 
     # Check bearer auth token if auth is enabled
@@ -201,9 +201,130 @@ def health_check():
     }
 
 
-@app.get("/status")
+@app.get("/status", summary="Get System Status")
 def system_status_endpoint():
     return service.system_status()
+
+
+@app.get("/api/player", summary="Get Player State")
+def api_get_player_state(player_id: str = "player_1"):
+    return service.get_player_state(player_id=player_id)
+
+
+@app.get("/api/stats", summary="Get Player Statistics")
+def api_get_stats(player_id: str = "player_1"):
+    return service.get_stats(player_id=player_id)
+
+
+@app.get("/api/weakest-link", summary="Diagnose Weakest Link")
+def api_get_weakest_link(player_id: str = "player_1"):
+    return service.get_weakest_link(player_id=player_id)
+
+
+@app.get("/api/quests/active", summary="Get Active Quests")
+def api_get_active_quests(player_id: str = "player_1"):
+    return service.get_active_quests(player_id=player_id)
+
+
+class GenerateQuestPayload(BaseModel):
+    player_id: str = "player_1"
+    target_weakness: Optional[str] = None
+    quest_type: str = "DAILY"
+    difficulty: Optional[str] = None
+
+
+@app.post("/api/quests/generate", summary="Generate Targeted Quest")
+def api_generate_quest(payload: GenerateQuestPayload):
+    return service.generate_quest(
+        player_id=payload.player_id,
+        target_weakness=payload.target_weakness,
+        quest_type_str=payload.quest_type,
+        difficulty_str=payload.difficulty
+    )
+
+
+class CompleteQuestPayload(BaseModel):
+    player_id: str = "player_1"
+    quest_id: str
+
+
+@app.post("/api/quests/complete", summary="Complete Quest Idempotently")
+def api_complete_quest(payload: CompleteQuestPayload):
+    return service.complete_quest(player_id=payload.player_id, quest_id=payload.quest_id)
+
+
+class FailQuestPayload(BaseModel):
+    player_id: str = "player_1"
+    quest_id: str
+    reason: str = "Missed deadline"
+
+
+@app.post("/api/quests/fail", summary="Fail Quest Safely")
+def api_fail_quest(payload: FailQuestPayload):
+    return service.fail_quest(player_id=payload.player_id, quest_id=payload.quest_id, reason=payload.reason)
+
+
+class RecordActivityPayload(BaseModel):
+    player_id: str = "player_1"
+    activity_type: str
+    description: str
+    duration_minutes: int
+    difficulty: str = "E"
+    evidence: str = ""
+
+
+@app.post("/api/activities/record", summary="Record Real-World Activity")
+def api_record_activity(payload: RecordActivityPayload):
+    return service.record_activity(
+        player_id=payload.player_id,
+        activity_type=payload.activity_type,
+        description=payload.description,
+        duration_minutes=payload.duration_minutes,
+        difficulty_str=payload.difficulty,
+        evidence=payload.evidence
+    )
+
+
+class EvaluateActivityPayload(BaseModel):
+    player_id: str = "player_1"
+    activity_id: str
+    quality_score: float = 1.0
+    completion_score: float = 1.0
+    consistency_score: float = 1.0
+    feedback: str = ""
+
+
+@app.post("/api/activities/evaluate", summary="Evaluate Activity & Award XP")
+def api_evaluate_activity(payload: EvaluateActivityPayload):
+    return service.evaluate_activity(
+        player_id=payload.player_id,
+        activity_id=payload.activity_id,
+        quality_score=payload.quality_score,
+        completion_score=payload.completion_score,
+        consistency_score=payload.consistency_score,
+        feedback=payload.feedback
+    )
+
+
+@app.get("/api/skills", summary="Get Player Skills")
+def api_get_skills(player_id: str = "player_1"):
+    return service.get_skills(player_id=player_id)
+
+
+@app.get("/api/achievements", summary="Get Player Achievements")
+def api_get_achievements(player_id: str = "player_1"):
+    return service.get_achievements(player_id=player_id)
+
+
+@app.get("/api/titles", summary="Get Player Titles")
+def api_get_titles(player_id: str = "player_1"):
+    return service.get_titles(player_id=player_id)
+
+
+@app.get("/api/history", summary="Get System History Audit Log")
+def api_get_history(player_id: str = "player_1", limit: int = 50):
+    return service.get_history(player_id=player_id, limit=limit)
+
 
 
 # Mount MCP Streamable HTTP & SSE Starlette Apps
